@@ -9,36 +9,145 @@ import lance
 import pyarrow as pa
 from typing import Dict, Any
 
+import io
+from pdfminer.converter import TextConverter
+from pdfminer.layout import LAParams, LTImage
+from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+from pdfminer.pdfpage import PDFPage
+from PIL import Image
+
 class PDFParser:
     """Parser for PDF documents"""
-    
-    def parse(self, file_path: str) -> str:
-        """Parse a PDF file into plain text
+
+    def parse(self, file_path: str, multimodal: bool = False) -> any:
+        """Parse a PDF file.
         
         Args:
             file_path: Path to the PDF file
+            multimodal: If True, extract text and images page by page. 
+                        Otherwise, extract text only.
             
         Returns:
-            Extracted text from the PDF
+            If multimodal is False, returns a string with extracted text.
+            If multimodal is True, returns a list of dictionaries, where each 
+            dictionary has 'text' (text from a page) and 'image' (first image 
+            bytes from that page, or None).
         """
         try:
-            from pdfminer.high_level import extract_text
-            return extract_text(file_path)
+            from PyPDF2 import PdfReader
         except ImportError:
-            raise ImportError("pdfminer.six is required for PDF parsing. Install it with: pip install pdfminer.six")
-    
-    def save(self, content: str, output_path: str) -> None:
-        """Save the extracted text to a Lance file
+            raise ImportError("PyPDF2 is required for PDF parsing. Install it with: pip install PyPDF2")
+
+        try:
+            reader = PdfReader(file_path)
+            
+            if not multimodal:
+                # Text-only mode: combine all pages
+                text = ""
+                for page in reader.pages:
+                    text += page.extract_text() + "\n"
+                return text.strip()
+            else:
+                # Multimodal mode: process page by page
+                output_data = []
+                
+                for page in reader.pages:
+                    # Extract text
+                    page_text = page.extract_text()
+                    
+                    # Extract first image
+                    first_image_bytes = None
+                    if '/Resources' in page and '/XObject' in page['/Resources']:
+                        xObject = page['/Resources']['/XObject'].get_object()
+                        for obj in xObject:
+                            if xObject[obj]['/Subtype'] == '/Image':
+                                try:
+                                    img_obj = xObject[obj]
+                                    data = img_obj.get_data()
+                                    if '/Filter' in img_obj:
+                                        if img_obj['/Filter'] == '/DCTDecode':
+                                            first_image_bytes = data
+                                        elif img_obj['/Filter'] == '/FlateDecode':
+                                            first_image_bytes = self.extract_image_from_pdf_image_obj(img_obj)
+                                        else:
+                                            print(f"Unsupported image filter: {img_obj['/Filter']}")
+                                    else:
+                                        print("No filter found for image")
+                                    break
+                                except Exception as e:
+                                    print(f"Warning: Error extracting image: {str(e)}")
+                                    continue
+                    
+                    output_data.append({
+                        'text': page_text,
+                        'image': first_image_bytes
+                    })
+                
+                return output_data
+                
+        except Exception as e:
+            print(f"Error processing PDF: {str(e)}")
+            raise
+
+    def save(self, content: any, output_path: str) -> None:
+        """Save the extracted content to a Lance file.
         
         Args:
-            content: Extracted text content
+            content: Extracted content (string or list of dicts)
             output_path: Path to save the Lance file
         """
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        # Create a PyArrow table
-        data = [pa.array([content])]
-        names = ['text']
-        table = pa.Table.from_arrays(data, names=names)
         
-        # Write to Lance file
+        if isinstance(content, str):
+            data = [pa.array([content])]
+            names = ['text']
+            table = pa.Table.from_arrays(data, names=names)
+        elif isinstance(content, list):
+            texts = pa.array([item['text'] for item in content], type=pa.string())
+            # Handle potential None values for images before creating the array
+            images_data = []
+            for item in content:
+                img = item.get('image')
+                images_data.append(img if img is not None else None)
+            images = pa.array(images_data, type=pa.binary())
+            
+            schema = pa.schema([
+                ('text', pa.string()),
+                ('image', pa.binary())
+            ])
+            table = pa.Table.from_arrays([texts, images], schema=schema)
+        else:
+            raise ValueError("Unsupported content type for saving.")
+            
         lance.write_dataset(table, output_path, mode="overwrite")
+
+    def extract_image_from_pdf_image_obj(self, img_obj):
+        data = img_obj.get_data()
+        width = img_obj['/Width']
+        height = img_obj['/Height']
+        color_space = img_obj['/ColorSpace']
+        bits_per_component = img_obj['/BitsPerComponent']
+
+        # Handle color space
+        if isinstance(color_space, list) and color_space[0] == '/ICCBased':
+            # Try to treat as RGB (most common)
+            print("ICCBased color space detected, treating as RGB for extraction.")
+            mode = "RGB"
+        elif color_space == '/DeviceRGB':
+            mode = "RGB"
+        elif color_space == '/DeviceGray':
+            mode = "L"
+        else:
+            print(f"Unsupported color space: {color_space}")
+            return None
+
+        # Create image from raw bytes
+        try:
+            image = Image.frombytes(mode, (width, height), data)
+            # Save to PNG bytes
+            output = io.BytesIO()
+            image.save(output, format="PNG")
+            return output.getvalue()
+        except Exception as e:
+            print(f"Error reconstructing image: {e}")
+            return None

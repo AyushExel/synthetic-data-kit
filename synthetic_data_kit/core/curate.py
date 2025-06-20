@@ -23,6 +23,7 @@ def curate_qa_pairs(
     model: Optional[str] = None,
     config_path: Optional[Path] = None,
     verbose: bool = False,
+    provider: Optional[str] = None,
 ) -> str:
     """Clean and filter QA pairs based on quality ratings
     
@@ -47,10 +48,20 @@ def curate_qa_pairs(
     # Load input file
     with open(input_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
+        # If the data is a dict, wrap it in a list for uniform processing
+        if isinstance(data, dict):
+            data = [data]
     
     # Extract QA pairs
-    qa_pairs = data.get("qa_pairs", [])
-    summary = data.get("summary", "")
+    all_qa_pairs = []
+    all_summaries = []
+    for block in data:
+        if isinstance(block, dict):
+            all_qa_pairs.extend(block.get("qa_pairs", []))
+            all_summaries.append(block.get("summary", ""))
+
+    qa_pairs = all_qa_pairs
+    summary = "\n\n".join(all_summaries) 
     
     # If there are no QA pairs or they're already filtered
     if not qa_pairs:
@@ -59,6 +70,7 @@ def curate_qa_pairs(
     # Initialize LLM client
     client = LLMClient(
         config_path=config_path,
+        provider=provider,
         api_base=api_base,
         model_name=model
     )
