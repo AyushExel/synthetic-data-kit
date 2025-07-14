@@ -108,20 +108,16 @@ class VQAGenerator:
         return messages
     
     def process_dataset(self, 
-                       dataset_source,
+                       documents,
                        output_dir: str,
                        num_examples: Optional[int] = None,
-                       input_split: Optional[str] = None,
-                       output_split: Optional[str] = None,
                        verbose: bool = False) -> str:
         """Process a dataset to add reasoning to VQA data
         
         Args:
-            dataset_source: Dataset source (path or HuggingFace dataset ID)
+            documents: A list of dictionaries, where each dictionary represents a row with text and an image.
             output_dir: Directory to save the processed dataset
             num_examples: Maximum number of examples to process
-            input_split: Dataset split to use as input
-            output_split: Dataset split to use for output
             verbose: Whether to print verbose output
             
         Returns:
@@ -134,89 +130,44 @@ class VQAGenerator:
             os.environ['SDK_VERBOSE'] = 'false'
             
         try:
-            # Try to load from file
-            try:
-                from datasets import Dataset
-            except ImportError:
-                raise ImportError("The 'datasets' package is required for this functionality. Please install it using 'pip install datasets'.")
-            try:
-                with open(dataset_source, 'r', encoding='utf-8') as f:
-                    input_data = f.read()
-                dataset = Dataset.from_dict(json.loads(input_data))
-            except FileNotFoundError as e:
-                # If the file doesn't exist, try to load it from the dataset hub
-                try:
-                    from huggingface_hub import HfApi
-                    from datasets import load_dataset
-                except ImportError:
-                    raise ImportError("The 'huggingface_hub' and 'datasets' packages are required for this functionality. Please install them using 'pip install huggingface_hub datasets'.")
+            from datasets import Dataset
+        except ImportError:
+            raise ImportError("The 'datasets' package is required for this functionality. Please install it using 'pip install datasets'.")
 
-                hf_api = HfApi()
-                if hf_api.repo_exists(repo_id=dataset_source, repo_type="dataset"):
-                    dataset = load_dataset(dataset_source)
-                else:
-                    # Uplevel error
-                    raise e
-                    
-            # Get input split from config if not provided
-            if input_split is None:
-                input_split = self.config.get("input_split", None)
+        # Create a HuggingFace dataset from the documents
+        dataset = Dataset.from_pylist(documents)
                 
-            # Get output split from config if not provided
-            if output_split is None:
-                output_split = self.config.get("output_split", None)
+        # Get max_examples from args or config
+        max_examples = num_examples
+        if max_examples is not None and max_examples > 0:
+            # Limit the dataset size
+            dataset = dataset.select(range(min(max_examples, len(dataset))))
 
-            # Use the specified split if provided
-            if input_split is not None:
-                dataset = dataset[input_split]
-                
-            # Get max_examples from args or config
-            max_examples = num_examples
-            if max_examples is not None and max_examples > 0:
-                # Limit the dataset size
-                dataset = dataset.select(range(min(max_examples, len(dataset))))
-                
-            if verbose:
-                print(f"Processing {len(dataset)} examples from dataset")
+        if verbose:
+            print(f"Processing {len(dataset)} examples from dataset")
 
-            # Get batch size from config
-            batch_size = self.generation_config.get("batch_size", 32)
+        # Get batch size from config
+        batch_size = self.generation_config.get("batch_size", 32)
+
+        if verbose:
+            print(f"Using batch size of {batch_size} for dataset processing")
+
+        # Process the dataset
+        ds = dataset.map(
+            self.transform,
+            batch_size=batch_size,
+            batched=True,
+        )
+
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Save the processed dataset
+        output_path = f"{output_dir}/data.parquet"
+        ds.to_parquet(output_path)
             
-            if verbose:
-                print(f"Using batch size of {batch_size} for dataset processing")
-                
-            # Process the dataset
-            ds = dataset.map(
-                self.transform,
-                batch_size=batch_size,
-                batched=True,
-            )
+        if verbose:
+            print(f"Saved processed dataset to {output_path}")
             
-            # Create output directory if it doesn't exist
-            os.makedirs(output_dir, exist_ok=True)
-
-            # Save the processed dataset
-            if output_split is not None:
-                # Create the split directory
-                os.makedirs(f"{output_dir}/{output_split}", exist_ok=True)
-                
-                # Write output that can be loaded back in with load_dataset
-                ds.to_parquet(f"{output_dir}/{output_split}/data.parquet")
-                meta_data = {"splits": [output_split]}
-                with open(f'{output_dir}/dataset_dict.json', 'w') as f:
-                    f.write(json.dumps(meta_data, indent=4))
-                    
-                output_path = f"{output_dir}/{output_split}/data.parquet"
-            else:
-                # Just dump it in a parquet file
-                ds.to_parquet(f"{output_dir}/data.parquet")
-                output_path = f"{output_dir}/data.parquet"
-                
-            if verbose:
-                print(f"Saved processed dataset to {output_path}")
-                
-            return output_path
+        return output_path
             
-        except Exception as e:
-            print(f"Error processing dataset: {e}")
-            raise

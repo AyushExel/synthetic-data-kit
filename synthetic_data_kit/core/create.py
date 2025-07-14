@@ -14,6 +14,8 @@ from synthetic_data_kit.generators.qa_generator import QAGenerator
 from synthetic_data_kit.generators.vqa_generator import VQAGenerator
 from synthetic_data_kit.utils.config import get_generation_config
 
+from synthetic_data_kit.utils.lance_utils import load_lance_dataset
+
 def read_json(file_path):
     # Read the file
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -74,11 +76,15 @@ def process_file(
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     
     # Generate content based on type
+    if file_path.endswith(".lance"):
+        dataset = load_lance_dataset(file_path)
+        documents = dataset.to_table().to_pylist()
+    else:
+        documents = [{"text": read_json(file_path), "image": None}]
+
     if content_type == "qa":
         generator = QAGenerator(client, config_path)
 
-        document_text = read_json(file_path)
-        
         # Get num_pairs from args or config
         if num_pairs is None:
             config = client.config
@@ -86,8 +92,8 @@ def process_file(
             num_pairs = generation_config.get("num_pairs", 25)
         
         # Process document
-        result = generator.process_document(
-            document_text,
+        result = generator.process_documents(
+            documents,
             num_pairs=num_pairs,
             verbose=verbose
         )
@@ -115,6 +121,19 @@ def process_file(
         
         return output_path
     
+    elif content_type == "vqa":
+        generator = VQAGenerator(client, config_path)
+
+        # Process the dataset
+        output_path = generator.process_dataset(
+            documents=documents,
+            output_dir=output_dir,
+            num_examples=num_pairs,
+            verbose=verbose
+        )
+
+        return output_path
+
     elif content_type == "summary":
         generator = QAGenerator(client, config_path)
 
