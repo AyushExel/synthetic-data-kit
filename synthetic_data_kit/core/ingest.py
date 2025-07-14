@@ -44,8 +44,14 @@ def determine_parser(file_path: str, config: Dict[str, Any], multimodal: bool = 
     from synthetic_data_kit.parsers.multimodal_parser import MultimodalParser
 
     ext = os.path.splitext(file_path)[1].lower()
+    if multimodal:
+        if ext in [".pdf", ".docx", ".pptx"]:
+            return MultimodalParser()
+        else:
+            raise ValueError(f"Unsupported file extension for multimodal parsing: {ext}")
+
     if ext == ".pdf":
-        return MultimodalParser() if multimodal else PDFParser()
+        return PDFParser()
 
     # Check if it's a URL
     if file_path.startswith(("http://", "https://")):
