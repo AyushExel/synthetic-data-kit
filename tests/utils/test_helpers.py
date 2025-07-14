@@ -4,9 +4,6 @@ import json
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
 from unittest.mock import patch
-from typer.testing import CliRunner
-
-
 class TestFileFactory:
     """Factory for creating test files with various content types."""
     
@@ -80,57 +77,6 @@ class TestFileFactory:
             unsupported_paths.append(file_path)
         
         return supported_paths, unsupported_paths
-
-
-class CLITestHelper:
-    """Helper class for CLI testing with common patterns."""
-    
-    def __init__(self, app):
-        self.app = app
-        self.runner = CliRunner()
-    
-    def run_command(self, cmd_args: List[str], expect_success: bool = True) -> Any:
-        """Run a CLI command with common setup.
-        
-        Args:
-            cmd_args: Command arguments
-            expect_success: Whether to expect success (exit code 0)
-            
-        Returns:
-            CliRunner result
-        """
-        result = self.runner.invoke(self.app, cmd_args)
-        
-        if expect_success:
-            assert result.exit_code == 0, f"Command failed: {result.stdout}"
-        
-        return result
-    
-    def assert_cli_success(self, result: Any, expected_patterns: List[str]):
-        """Assert CLI command succeeded with expected output patterns.
-        
-        Args:
-            result: CliRunner result
-            expected_patterns: List of strings that should appear in stdout
-        """
-        assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
-        
-        for pattern in expected_patterns:
-            assert pattern in result.stdout, f"Expected pattern '{pattern}' not found in output: {result.stdout}"
-    
-    def assert_cli_failure(self, result: Any, expected_patterns: Optional[List[str]] = None):
-        """Assert CLI command failed with expected error patterns.
-        
-        Args:
-            result: CliRunner result
-            expected_patterns: List of error strings that should appear in output
-        """
-        assert result.exit_code != 0, f"Command unexpectedly succeeded: {result.stdout}"
-        
-        if expected_patterns:
-            output = result.stdout + result.stderr if hasattr(result, 'stderr') else result.stdout
-            for pattern in expected_patterns:
-                assert pattern in output, f"Expected error pattern '{pattern}' not found in output: {output}"
 
 
 class DirectoryStatsHelper:

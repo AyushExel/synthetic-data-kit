@@ -34,14 +34,14 @@ def create_lance_dataset(
 
 def load_lance_dataset(
     dataset_path: str
-) -> Optional[lance.LanceDataset]:
+):
     """Load a Lance dataset.
 
     Args:
         dataset_path (str): The path to the Lance dataset.
 
     Returns:
-        Optional[lance.LanceDataset]: The loaded Lance dataset, or None if the dataset does not exist.
+        The loaded Lance dataset, or None if the dataset does not exist.
     """
     if not os.path.exists(dataset_path):
         return None
