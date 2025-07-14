@@ -1,0 +1,45 @@
+{
+  "summary": "Here is a summary of the document in 3-5 sentences:\n\nThe document is a sample guide for creating PDF bookmarks using Accelio Present Output Designer and Central. It demonstrates how to create primary and secondary bookmarks in a PDF file using a sample data file and bookmark file. The sample data file contains eight records, and the bookmark file specifies three different sorting options: by date, item type, and transaction amount. The guide provides instructions on deploying and running the sample in a user's environment, including modifying command line parameters to generate bookmarks for specific sections.",
+  "qa_pairs": [
+    {
+      "question": "When was the PDF Bookmark Sample prepared?",
+      "answer": "May 2001"
+    },
+    {
+      "question": "What software was used to create and test the PDF Bookmark Sample?",
+      "answer": "Accelio Present Central 5.4 and Accelio Present Output Designer 5.4"
+    },
+    {
+      "question": "What features are demonstrated in the PDF Bookmark Sample?",
+      "answer": "Primary bookmarks in a PDF file and secondary bookmarks in a PDF file"
+    },
+    {
+      "question": "How many records are contained in the data file?",
+      "answer": "Eight separate records"
+    },
+    {
+      "question": "What is the purpose of the bookmark file in the PDF Bookmark Sample?",
+      "answer": "To produce a PDF with a separate pane containing bookmarks"
+    },
+    {
+      "question": "How do you enable the display of bookmarks in Adobe Acrobat Reader?",
+      "answer": "By clicking Window > Show Bookmarks"
+    },
+    {
+      "question": "How are the pages within the PDF file created?",
+      "answer": "According to the original order in the data file"
+    },
+    {
+      "question": "What are the three distinct sections in the example bookmark file?",
+      "answer": "Invoices sorted by date, invoices sorted by item type, and invoices sorted by transaction amount"
+    },
+    {
+      "question": "What is the command line parameter to generate bookmarks by invoices?",
+      "answer": "-abmk ap_bookmark.bmk -abms invoices"
+    },
+    {
+      "question": "Where should the ap_bookmark.IFD file be placed for deployment?",
+      "answer": "In the Designs subdirectory for Output Designer"
+    }
+  ]
+}
