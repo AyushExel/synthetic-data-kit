@@ -354,7 +354,7 @@ def create(
     
     try:
         # Check if input is a directory
-        if is_directory(input):
+        if is_directory(input) and not input.endswith(".lance"):
             # Preview mode - show files without processing
             if preview:
                 # For cot-enhance, look for .json files, otherwise .txt files
