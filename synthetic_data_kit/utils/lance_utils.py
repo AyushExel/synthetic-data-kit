@@ -30,7 +30,7 @@ def create_lance_dataset(
         os.makedirs(output_dir)
 
     table = pa.Table.from_pylist(data, schema=schema)
-    lance.write_dataset(table, output_path)
+    lance.write_dataset(table, output_path, mode="overwrite")
 
 def load_lance_dataset(
     dataset_path: str
