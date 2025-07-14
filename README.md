@@ -82,19 +82,19 @@ vllm serve meta-llama/Llama-3.3-70B-Instruct --port 8000
 
 ### 2. Usage
 
-The flow follows 4 simple steps: `ingest`, `create`, `curate`, `save-as`. You can process individual files or entire directories:
+The flow follows 4 simple steps: `ingest`, `create`, `curate`, `save-as`. You can process individual files or entire directories. All data is now stored in Lance format by default.
 
 ```bash
 # Check if your backend is running
 synthetic-data-kit system-check
 
 # SINGLE FILE PROCESSING (Original approach)
-# Parse a document to text
+# Parse a document to a Lance dataset
 synthetic-data-kit ingest docs/report.pdf
-# This saves file to data/parsed/report.txt
+# This saves file to data/parsed/report.lance
 
 # Generate QA pairs (default)
-synthetic-data-kit create data/parsed/report.txt --type qa
+synthetic-data-kit create data/parsed/report.lance --type qa
 
 OR 
 
@@ -254,7 +254,22 @@ synthetic-data-kit create ./data/parsed --preview --verbose
 synthetic-data-kit ingest "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 # Generate QA pairs with specific model
-synthetic-data-kit create data/parsed/youtube_dQw4w9WgXcQ.txt
+synthetic_data_kit create data/parsed/youtube_dQw4w9WgXcQ.lance
+```
+
+### Multimodal Usage
+
+The tool can also handle multimodal data, extracting both text and images from documents.
+
+```bash
+# Ingest a PDF with multimodal support
+synthetic-data-kit ingest docs/report.pdf --multimodal
+
+# This will create a Lance dataset at data/parsed/report.lance
+# with 'text' and 'image' columns.
+
+# Generate VQA pairs from the ingested data
+synthetic-data-kit create data/parsed/report.lance --type vqa
 ```
 
 ### Processing Multiple Files

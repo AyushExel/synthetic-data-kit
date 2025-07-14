@@ -137,10 +137,10 @@ def process_file(
     elif content_type == "summary":
         generator = QAGenerator(client, config_path)
 
-        document_text = read_json(file_path)
+        full_text = " ".join([doc["text"] for doc in documents])
         
         # Generate just the summary
-        summary = generator.generate_summary(document_text)
+        summary = generator.generate_summary(full_text)
         
         # Save output
         output_path = os.path.join(output_dir, f"{base_name}_summary.json")
@@ -159,7 +159,7 @@ def process_file(
         # Initialize the CoT generator
         generator = COTGenerator(client, config_path)
 
-        document_text = read_json(file_path)
+        full_text = " ".join([doc["text"] for doc in documents])
         
         # Get num_examples from args or config
         if num_pairs is None:
@@ -169,7 +169,7 @@ def process_file(
         
         # Process document to generate CoT examples
         result = generator.process_document(
-            document_text,
+            full_text,
             num_examples=num_pairs,
             include_simple_steps=verbose  # More detailed if verbose is enabled
         )
