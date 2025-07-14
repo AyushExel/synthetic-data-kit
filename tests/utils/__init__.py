@@ -2,7 +2,6 @@
 
 from .test_helpers import (
     TestFileFactory,
-    CLITestHelper,
     DirectoryStatsHelper,
     MockConfigHelper,
     TempDirectoryManager,
@@ -14,7 +13,6 @@ from .test_helpers import (
 
 __all__ = [
     'TestFileFactory',
-    'CLITestHelper', 
     'DirectoryStatsHelper',
     'MockConfigHelper',
     'TempDirectoryManager',
