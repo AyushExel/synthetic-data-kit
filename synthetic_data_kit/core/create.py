@@ -114,50 +114,9 @@ def process_file(
         return output_path
     
     elif content_type == "multimodal-qa":
-        # Generate multimodal QA pairs from text/image chunks
-        def generate_mmqa_pairs(documents, client, num_pairs=1):
-            mmqa_pairs = []
-            import base64
-            system_prompt = (
-                "You are a helpful assistant. Given the following passage and image, generate a single high-quality question and its answer. "
-                "Return ONLY valid JSON in the format: {\"question\": \"...\", \"answer\": \"...\"}. "
-                "Do not include any explanation, markdown, or text outside the JSON."
-            )
-            # Limit the number of documents if num_pairs is set
-            if num_pairs is not None and num_pairs > 0:
-                documents = documents[:num_pairs]
-            for doc in documents:
-                text = doc["text"]
-                image = doc.get("image", None)
-                user_content = []
-                user_content.append({"type": "text", "text": f"Passage: {text}"})
-                if image is not None:
-                    image_b64 = base64.b64encode(image).decode("utf-8")
-                    user_content.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{image_b64}"}
-                    })
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content}
-                ]
-                response = client.chat_completion(messages)
-                # print("RAW LLM RESPONSE:", response) 
-                import json as _json
-                try:
-                    qa = _json.loads(response)
-                    question = qa.get("question", "")
-                    answer = qa.get("answer", "")
-                except Exception:
-                    question = ""
-                    answer = ""
-                mmqa_pairs.append({"question": question, "answer": answer})
-            return mmqa_pairs
-
-        mmqa_documents = generate_mmqa_pairs(documents, client, num_pairs=num_pairs)
         generator = MultimodalQAGenerator(client, config_path)
         output_path = generator.process_dataset(
-            documents=mmqa_documents,
+            documents=documents,
             output_dir=output_dir,
             num_examples=num_pairs,
             verbose=verbose
