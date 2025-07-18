@@ -11,7 +11,8 @@ from typing import Optional, Dict, Any
 
 from synthetic_data_kit.models.llm_client import LLMClient
 from synthetic_data_kit.generators.qa_generator import QAGenerator
-from synthetic_data_kit.generators.vqa_generator import VQAGenerator
+from synthetic_data_kit.generators.multimodal_qa_generator import MultimodalQAGenerator
+
 from synthetic_data_kit.utils.config import get_generation_config
 
 from synthetic_data_kit.utils.lance_utils import load_lance_dataset
@@ -101,15 +102,6 @@ def process_file(
         # Save output
         output_path = os.path.join(output_dir, f"{base_name}_qa_pairs.json")
         print(f"Saving result to {output_path}")
-        
-        # First, let's save a basic test file to confirm the directory is writable
-        test_path = os.path.join(output_dir, "test_write.json")
-        try:
-            with open(test_path, 'w', encoding='utf-8') as f:
-                f.write('{"test": "data"}')
-            print(f"Successfully wrote test file to {test_path}")
-        except Exception as e:
-            print(f"Error writing test file: {e}")
             
         # Now save the actual result
         try:
@@ -121,17 +113,55 @@ def process_file(
         
         return output_path
     
-    elif content_type == "vqa":
-        generator = VQAGenerator(client, config_path)
+    elif content_type == "multimodal-qa":
+        # Generate multimodal QA pairs from text/image chunks
+        def generate_mmqa_pairs(documents, client, num_pairs=1):
+            mmqa_pairs = []
+            import base64
+            system_prompt = (
+                "You are a helpful assistant. Given the following passage and image, generate a single high-quality question and its answer. "
+                "Return ONLY valid JSON in the format: {\"question\": \"...\", \"answer\": \"...\"}. "
+                "Do not include any explanation, markdown, or text outside the JSON."
+            )
+            # Limit the number of documents if num_pairs is set
+            if num_pairs is not None and num_pairs > 0:
+                documents = documents[:num_pairs]
+            for doc in documents:
+                text = doc["text"]
+                image = doc.get("image", None)
+                user_content = []
+                user_content.append({"type": "text", "text": f"Passage: {text}"})
+                if image is not None:
+                    image_b64 = base64.b64encode(image).decode("utf-8")
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{image_b64}"}
+                    })
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ]
+                response = client.chat_completion(messages)
+                # print("RAW LLM RESPONSE:", response) 
+                import json as _json
+                try:
+                    qa = _json.loads(response)
+                    question = qa.get("question", "")
+                    answer = qa.get("answer", "")
+                except Exception:
+                    question = ""
+                    answer = ""
+                mmqa_pairs.append({"question": question, "answer": answer})
+            return mmqa_pairs
 
-        # Process the dataset
+        mmqa_documents = generate_mmqa_pairs(documents, client, num_pairs=num_pairs)
+        generator = MultimodalQAGenerator(client, config_path)
         output_path = generator.process_dataset(
-            documents=documents,
+            documents=mmqa_documents,
             output_dir=output_dir,
             num_examples=num_pairs,
             verbose=verbose
         )
-
         return output_path
 
     elif content_type == "summary":
@@ -311,19 +341,7 @@ def process_file(
             
         except json.JSONDecodeError:
             raise ValueError(f"Failed to parse {file_path} as JSON. For cot-enhance, input must be a valid JSON file.")
-    elif content_type == "vqa_add_reasoning":
-        # Initialize the VQA generator
-        generator = VQAGenerator(client, config_path)
-        
-        # Process the dataset
-        output_path = generator.process_dataset(
-            dataset_source=file_path,
-            output_dir=output_dir,
-            num_examples=num_pairs,
-            verbose=verbose
-        )
-        
-        return output_path
+
 
     else:
         raise ValueError(f"Unknown content type: {content_type}")
