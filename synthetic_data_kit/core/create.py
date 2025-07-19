@@ -11,8 +11,11 @@ from typing import Optional, Dict, Any
 
 from synthetic_data_kit.models.llm_client import LLMClient
 from synthetic_data_kit.generators.qa_generator import QAGenerator
-from synthetic_data_kit.generators.vqa_generator import VQAGenerator
+from synthetic_data_kit.generators.multimodal_qa_generator import MultimodalQAGenerator
+
 from synthetic_data_kit.utils.config import get_generation_config
+
+from synthetic_data_kit.utils.lance_utils import load_lance_dataset
 
 def read_json(file_path):
     # Read the file
@@ -74,11 +77,15 @@ def process_file(
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     
     # Generate content based on type
+    if file_path.endswith(".lance"):
+        dataset = load_lance_dataset(file_path)
+        documents = dataset.to_table().to_pylist()
+    else:
+        documents = [{"text": read_json(file_path), "image": None}]
+
     if content_type == "qa":
         generator = QAGenerator(client, config_path)
 
-        document_text = read_json(file_path)
-        
         # Get num_pairs from args or config
         if num_pairs is None:
             config = client.config
@@ -86,8 +93,8 @@ def process_file(
             num_pairs = generation_config.get("num_pairs", 25)
         
         # Process document
-        result = generator.process_document(
-            document_text,
+        result = generator.process_documents(
+            documents,
             num_pairs=num_pairs,
             verbose=verbose
         )
@@ -95,15 +102,6 @@ def process_file(
         # Save output
         output_path = os.path.join(output_dir, f"{base_name}_qa_pairs.json")
         print(f"Saving result to {output_path}")
-        
-        # First, let's save a basic test file to confirm the directory is writable
-        test_path = os.path.join(output_dir, "test_write.json")
-        try:
-            with open(test_path, 'w', encoding='utf-8') as f:
-                f.write('{"test": "data"}')
-            print(f"Successfully wrote test file to {test_path}")
-        except Exception as e:
-            print(f"Error writing test file: {e}")
             
         # Now save the actual result
         try:
@@ -115,13 +113,23 @@ def process_file(
         
         return output_path
     
+    elif content_type == "multimodal-qa":
+        generator = MultimodalQAGenerator(client, config_path)
+        output_path = generator.process_dataset(
+            documents=documents,
+            output_dir=output_dir,
+            num_examples=num_pairs,
+            verbose=verbose
+        )
+        return output_path
+
     elif content_type == "summary":
         generator = QAGenerator(client, config_path)
 
-        document_text = read_json(file_path)
+        full_text = " ".join([doc["text"] for doc in documents])
         
         # Generate just the summary
-        summary = generator.generate_summary(document_text)
+        summary = generator.generate_summary(full_text)
         
         # Save output
         output_path = os.path.join(output_dir, f"{base_name}_summary.json")
@@ -140,7 +148,7 @@ def process_file(
         # Initialize the CoT generator
         generator = COTGenerator(client, config_path)
 
-        document_text = read_json(file_path)
+        full_text = " ".join([doc["text"] for doc in documents])
         
         # Get num_examples from args or config
         if num_pairs is None:
@@ -150,7 +158,7 @@ def process_file(
         
         # Process document to generate CoT examples
         result = generator.process_document(
-            document_text,
+            full_text,
             num_examples=num_pairs,
             include_simple_steps=verbose  # More detailed if verbose is enabled
         )
@@ -292,19 +300,7 @@ def process_file(
             
         except json.JSONDecodeError:
             raise ValueError(f"Failed to parse {file_path} as JSON. For cot-enhance, input must be a valid JSON file.")
-    elif content_type == "vqa_add_reasoning":
-        # Initialize the VQA generator
-        generator = VQAGenerator(client, config_path)
-        
-        # Process the dataset
-        output_path = generator.process_dataset(
-            dataset_source=file_path,
-            output_dir=output_dir,
-            num_examples=num_pairs,
-            verbose=verbose
-        )
-        
-        return output_path
+
 
     else:
         raise ValueError(f"Unknown content type: {content_type}")

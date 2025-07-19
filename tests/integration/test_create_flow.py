@@ -30,7 +30,7 @@ def test_process_file(patch_config, test_env):
             with patch("synthetic_data_kit.core.create.QAGenerator") as mock_qa_gen_class:
                 # Create a mock generator that returns a predefined document
                 mock_generator = MagicMock()
-                mock_generator.process_document.return_value = {
+                mock_generator.process_documents.return_value = {
                     "summary": "A sample text for testing.",
                     "qa_pairs": [
                         {"question": "What is this?", "answer": "This is sample text."},
@@ -67,7 +67,7 @@ def test_process_file(patch_config, test_env):
 
                         # Verify QA generator was created and used
                         mock_qa_gen_class.assert_called_once()
-                        mock_generator.process_document.assert_called_once()
+                        mock_generator.process_documents.assert_called_once()
 
                         # Verify data was written to a file
                         mock_json_dump.assert_called()

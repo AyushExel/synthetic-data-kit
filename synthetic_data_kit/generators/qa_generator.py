@@ -291,27 +291,32 @@ class QAGenerator:
         print(f"Average score: {metrics['avg_score']}")
         return rated_pairs, metrics
     
-    def process_document(self, 
-                       document_text: str, 
-                       num_pairs: int = 25, 
-                       verbose: bool = False) -> Dict[str, Any]:
-        """Process a document to generate QA pairs without rating"""
+    def process_documents(self,
+                        documents: List[Dict[str, Any]],
+                        num_pairs: int = 25,
+                        verbose: bool = False) -> Dict[str, Any]:
+        """Process a list of documents to generate QA pairs without rating"""
         # Set the verbose environment variable
         if verbose:
             os.environ['SDK_VERBOSE'] = 'true'
         else:
             os.environ['SDK_VERBOSE'] = 'false'
-        
+
+        all_qa_pairs = []
+        full_text = " ".join([doc["text"] for doc in documents])
+
         # Generate summary
-        summary = self.generate_summary(document_text)
-        
+        summary = self.generate_summary(full_text)
+
         # Generate QA pairs
-        qa_pairs = self.generate_qa_pairs(document_text, summary, num_pairs=num_pairs)
-        
+        qa_pairs = self.generate_qa_pairs(full_text, summary, num_pairs=num_pairs)
+
+        all_qa_pairs.extend(qa_pairs)
+
         # Prepare result - no rating at this stage
         result = {
             "summary": summary,
-            "qa_pairs": qa_pairs
+            "qa_pairs": all_qa_pairs
         }
-        
+
         return result

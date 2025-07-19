@@ -50,15 +50,11 @@ def test_complete_workflow(patch_config, test_env):
             output_path = ingest.process_file(
                 file_path=source_path,
                 output_dir=output_dir,
-                output_name="sample.txt",  # Specify output name to match expected path
+                output_name="sample.lance",  # Specify output name to match expected path
             )
 
             # Check that parsing was successful
-            assert output_path == parsed_path
-
-            # Copy the source content to the parsed path for the next step
-            with open(source_path) as src, open(parsed_path, "w") as dst:
-                dst.write(src.read())
+            assert output_path.endswith(".lance")
 
         # 2. Create step - mock the LLM client
         with patch("synthetic_data_kit.core.create.LLMClient") as mock_llm_client_class:
@@ -75,7 +71,7 @@ def test_complete_workflow(patch_config, test_env):
             with patch("synthetic_data_kit.core.create.QAGenerator") as mock_qa_gen_class:
                 # Create a mock generator that returns predefined QA pairs
                 mock_generator = MagicMock()
-                mock_generator.process_document.return_value = {
+                mock_generator.process_documents.return_value = {
                     "summary": "A sample document about synthetic data generation.",
                     "qa_pairs": [
                         {
@@ -91,15 +87,15 @@ def test_complete_workflow(patch_config, test_env):
                 mock_qa_gen_class.return_value = mock_generator
 
                 # Generate QA pairs
-                output_path = create.process_file(
-                    file_path=parsed_path, output_dir=generated_dir, content_type="qa", num_pairs=2
+                generated_path = create.process_file(
+                    file_path=output_path, output_dir=generated_dir, content_type="qa", num_pairs=2
                 )
 
                 # Check that QA pairs were generated
-                assert output_path == qa_pairs_path
+                assert generated_path.endswith(".json")
 
                 # Write mock QA pairs to the output path
-                with open(qa_pairs_path, "w") as f:
+                with open(generated_path, "w") as f:
                     json.dump(
                         {
                             "summary": "A sample document about synthetic data generation.",

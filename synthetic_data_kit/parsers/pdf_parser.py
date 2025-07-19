@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 class PDFParser:
     """Parser for PDF documents"""
 
-    def parse(self, file_path: str) -> str:
+    def parse(self, file_path: str) -> list[dict[str, any]]:
         """Parse a PDF file into plain text
 
         Args:
@@ -44,13 +44,14 @@ class PDFParser:
 
             try:
                 # Parse the downloaded PDF
-                return extract_text(temp_path)
+                text = extract_text(temp_path)
             finally:
                 # Clean up temp file
                 os.unlink(temp_path)
         else:
             # Handle local files as before
-            return extract_text(file_path)
+            text = extract_text(file_path)
+        return [{"text": text}]
 
     def save(self, content: str, output_path: str) -> None:
         """Save the extracted text to a file

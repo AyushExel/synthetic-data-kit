@@ -8,10 +8,9 @@ from unittest.mock import MagicMock, patch
 from contextlib import contextmanager
 
 import pytest
-from typer.testing import CliRunner
 
 # Import our test utilities
-from tests.utils import TempDirectoryManager, CLITestHelper
+from tests.utils import TempDirectoryManager
 
 
 @pytest.fixture
@@ -302,15 +301,6 @@ def sample_conversations():
         },
     ]
 #New fixtures
-@pytest.fixture
-def cli_runner():
-    """Fixture providing CLI runner for testing CLI commands.
-    
-    This replaces the repetitive CliRunner() setup in multiple test files.
-    """
-    return CliRunner()
-
-
 @pytest.fixture
 def cli_helper():
     """Fixture providing CLI test helper with common utilities.

@@ -15,7 +15,7 @@ console = Console()
 
 # Supported file extensions for each command
 INGEST_EXTENSIONS = ['.pdf', '.html', '.htm', '.docx', '.pptx', '.txt']
-CREATE_EXTENSIONS = ['.txt']
+CREATE_EXTENSIONS = ['.txt', '.lance']
 CURATE_EXTENSIONS = ['.json']
 SAVE_AS_EXTENSIONS = ['.json']
 
